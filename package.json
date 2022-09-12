@@ -1,0 +1,16 @@
+{
+  "name": "Singularity-HPC-Tutorial",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/StormFireFox1/Singularity-HPC-Tutorial",
+  "author": "Storm_FireFox1",
+  "license": "MIT",
+  "dependencies": {
+    "@mdx-deck/themes": "^4.1.0",
+    "code-surfer": "^3.1.1",
+    "mdx-deck": "^4.1.1"
+  },
+  "scripts": {
+    "start": "mdx-deck deck.mdx"
+  }
+}
