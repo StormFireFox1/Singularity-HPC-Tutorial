@@ -1,5 +1,471 @@
-import { future } from '@mdx-deck/themes'
+import { themes } from 'mdx-deck'
+import { CodeSurfer } from 'code-surfer'
+
+export const theme = themes.future
 
 # Welcome!
 
-Sit back, get a coffee ☕
+Sit back, get an afternoon coffee ☕
+
+---
+
+## Hello!
+
+<Steps>
+
+I'm Matei.
+
+I really like computers.
+
+Full-stack developer.
+
+**Way** too much experience with DevOps.
+
+</Steps>
+
+---
+
+## Quick disclaimers
+
+<Steps>
+
+I talk a lot.
+
+Don't hesitate to interrupt and ask questions!
+
+✋ on Zoom.
+
+</Steps>
+
+---
+
+## TL;DR for talk
+
+<Steps>
+
+A quick tutorial on containers.
+
+Why would we want to use them?
+
+Quick demo using Slurm and HPCG.
+
+</Steps>
+
+---
+
+## What are containers?
+
+<Steps>
+
+A special kind of virtual machine.
+
+The idea is simple: "why duplicate the kernel?"
+
+Re-use kernel across every "virtual machine".
+
+</Steps>
+
+---
+
+## Why containers?
+
+<Steps>
+
+Keeps things the same everywhere.
+
+Installing applications is easy and isolated!
+
+No need to futz around with configurations.
+
+</Steps>
+
+---
+
+## "Oh, you mean Docker!"
+
+<Steps>
+
+I mean OCI containers.
+
+They can be run by different kinds of container daemons.
+
+Podman, Docker, etc.
+
+</Steps>
+
+---
+
+## Singularity
+
+<Image
+src='http://sylabs.io/wp-content/uploads/2022/03/singularity-logo-round.svg'
+style={{
+    width: '30vh',
+    height: '30vh',
+}}
+>
+</Image>
+
+Another container platform designed for HPC.
+
+---
+
+## Singularity vs Docker
+
+<Steps>
+
+- Has few security restrictions
+- Higher performance!
+- Works with Docker containers!
+- Less isolated features
+
+</Steps>
+
+---
+
+## How to Singularity?
+
+<Steps>
+
+- Install Singularity on host machine
+- Download Singularity container (or build a .sif)
+- `$ singularity run random-container.sif`
+
+</Steps>
+
+---
+
+## How could we use it?
+
+<Steps>
+
+Standard platform for all our needs in the competition.
+
+Setup Slurm, dependencies for projects, etc.
+
+Environment consistent across all nodes, no need to reinstall.
+
+</Steps>
+
+---
+
+## Starting Simple
+
+I'll show you an example definition file for Singularity.
+
+We'll then install Slurm, dependencies, etc.
+
+---
+
+<CodeSurfer>
+
+```bash title="Base information" subtitle="What container to start from, stage, etc."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+```
+
+```bash title="Setup section" subtitle="Stuff that gets run on host machine. Be careful!"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+```
+
+```bash title="Files section" subtitle="What files to copy from host machine to container"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+```
+
+```bash title="Environment section" subtitle="Environment variables everything uses"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+```
+
+```bash title="Post section" subtitle="Where most of the magic happens"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+```
+
+```bash title="Run section" subtitle="What happens when you type 'singularity run'. Typically just 'run bash'."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+
+%runscript
+    exec "$@"
+```
+
+```bash title="Start section" subtitle="What happens when the container start, no matter how."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+
+%runscript
+    exec "$@"
+
+%startscript
+    nc -lp 8080
+```
+
+```bash title="Test section" subtitle="Run after container is created. If these fail, build fails."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+
+%runscript
+    exec "$@"
+
+%startscript
+    nc -lp 8080
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+```
+
+```bash title="Label section" subtitle="Don't forget to sign your work! :D"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+
+%runscript
+    exec "$@"
+
+%startscript
+    nc -lp 8080
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+</CodeSurfer>
+
+---
+
+## Next Steps
+
+Let's get Slurm properly set up.
+
+We need to configure our cluster first.
+
+[Thank God for the Internet.](https://slurm.schedmd.com/configurator.html)
+
+---
+
+## Let's get it installed!
+
+Now we just need to:
+- add the configuration file to the container
+- enable the daemon service on the worker nodes
+- enable the controller service on the controller nodes
+
+Sadly, the easiest way to separate is just two separate containers.
+
+---
+
+<CodeSurfer>
+
+```bash
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+
+%runscript
+    exec "$@"
+
+%startscript
+    nc -lp 8080
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+```bash title="Add our configuration file" subtitle="Make sure we also start the Slurm services."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+    /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y netcat slurmd slurmctld
+    systemctl enable slurmd # for worker
+    systemctl enable slurmctld # for controller
+
+%runscript
+    exec "$@"
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+</CodeSurfer>
+
+---
+
+# So far, so good!
+
+HPCG is up next.
+
+It would be nice not to leave compilation in container.
+
+Keeping containers clean and lean is good practice.
+
+---
+
+## How do we keep it clean?
+
+**Multi-stage building!**
+
+One stage compiles all of our various binaries (like HPCG).
+
+The other stage (the one with Slurm) gets the binaries to run.
+
+---
+
+<!-- TODO Add HPCG compilation process and transfer binary to some opt directory to Slurm container. -->
+<!-- TODO Test all this shit and see how to do networking between the containers using Singularity. -->
+<!-- TODO Submit slides to Matthew -->
