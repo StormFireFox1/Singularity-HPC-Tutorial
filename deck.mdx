@@ -23,6 +23,23 @@ Full-stack developer.
 
 </Steps>
 
+<Notes>
+
+Hello, everyone! I'm Matei, I'm a 4th year computer science major in Warren College.
+
+I really like computers. I've liked them since I was like 5 apparently, according to my parents, and I've always loved tinkering with them.
+Since then, I've done less of "messing around randomly with system settings" and more actual coding.
+
+I like to consider myself a generalist in computer science, and I've tried to strive for that by generally just learning as much as I can
+at every layer of computers, from physics and transistors to JavaScripts frameworks, which are, probably like, 600 layers of abstraction above
+transistors.
+
+I will concede that I've spent way more time on DevOps than anyone who considers themselves a generalist should, despite the fact that "DevOps"
+as a term implies generalism. I've deployed computer infrastructure in pretty much every way, from bare-metal servers to Kubernetes clusters of
+various sizes.
+
+</Notes>
+
 ---
 
 ## Quick disclaimers
@@ -51,6 +68,19 @@ Quick demo using Slurm and HPCG.
 
 </Steps>
 
+<Notes>
+
+Alright, so what am I actually presenting for you today?
+
+Well, I'm going to give y'all a quick small tutorial on containers, what they are, how to make them, and maybe some more in-depth technical details if anyone is interested.
+
+We'll also talk about why we would want to use them for this competition in particular, and just some other general usecases.
+
+We'll do this workshop of sorts using a quick demo on Slurm and HPCG. The idea is that we want to use container workflows to make a Slurm cluster and install programs on it
+that we'll use for running our cluster, such as the HPCG benchmark.
+
+</Notes>
+
 ---
 
 ## What are containers?
@@ -65,6 +95,14 @@ Re-use kernel across every "virtual machine".
 
 </Steps>
 
+<Notes>
+
+- Cover the basic difference between a VM and a container.
+
+Maybe even annotate the famous graphic using Zoom.
+
+</Notes>
+
 ---
 
 ## Why containers?
@@ -78,6 +116,17 @@ Installing applications is easy and isolated!
 No need to futz around with configurations.
 
 </Steps>
+
+<Notes>
+
+Give anecdotes on why it's important to keep things the same anywhere. Configuration management like Ansible and stuff maybe.
+
+Installing applications is as easy as running a container, especially for environments that are highly volatile.
+
+You may not futz with configurations but you will futz around with environment variables, but it's still somewhat easier overall.
+Envvars are easier to set than configuration files.
+
+</Notes>
 
 ---
 
