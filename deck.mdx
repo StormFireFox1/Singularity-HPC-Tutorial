@@ -162,13 +162,13 @@ We'll then install Slurm, dependencies, etc.
 ```bash title="Base information" subtitle="What container to start from, stage, etc."
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 ```
 
 ```bash title="Setup section" subtitle="Stuff that gets run on host machine. Be careful!"
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -177,7 +177,7 @@ Stage: build
 ```bash title="Files section" subtitle="What files to copy from host machine to container"
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -189,7 +189,7 @@ Stage: build
 ```bash title="Environment section" subtitle="Environment variables everything uses"
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -205,7 +205,7 @@ Stage: build
 ```bash title="Post section" subtitle="Where most of the magic happens"
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -224,7 +224,7 @@ Stage: build
 ```bash title="Run section" subtitle="What happens when you type 'singularity run'. Typically just 'run bash'."
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -246,7 +246,7 @@ Stage: build
 ```bash title="Start section" subtitle="What happens when the container start, no matter how."
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -271,7 +271,7 @@ Stage: build
 ```bash title="Test section" subtitle="Run after container is created. If these fail, build fails."
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -304,7 +304,7 @@ Stage: build
 ```bash title="Label section" subtitle="Don't forget to sign your work! :D"
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -369,7 +369,7 @@ Sadly, the easiest way to separate is just two separate containers.
 ```bash
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -382,7 +382,13 @@ Stage: build
     export LC_ALL=C
 
 %post
-    apt update && apt install -y netcat slurmd slurmctld
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 %runscript
     exec "$@"
@@ -407,7 +413,7 @@ Stage: build
 ```bash title="Add our configuration file" subtitle="Make sure we also start the Slurm services."
 Bootstrap: library
 From: ubuntu:20.04
-Stage: build
+Stage: final
 
 %setup
     touch /test_file
@@ -415,15 +421,26 @@ Stage: build
 %files
     /test_file /opt
     /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+    /home/ghost/Downloads/cgroup.conf /etc/slurm-llnl/
 
 %environment
     export SOME_VAR=example
     export LC_ALL=C
 
 %post
-    apt update && apt install -y netcat slurmd slurmctld
-    systemctl enable slurmd # for worker
-    systemctl enable slurmctld # for controller
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+%startscript
+    sudo sed -i "s/REPLACE_IT/CPUs=$(nproc)/g" /etc/slurm-llnl/slurm.conf
+    sudo service munge start
+    sudo service slurmctld start # Use ONLY this if controller node
+    # sudo slurmd -N $(hostname) # Use ONLY this if worker node
 
 %runscript
     exec "$@"
@@ -448,15 +465,21 @@ Stage: build
 
 # So far, so good!
 
+<Steps>
+
 HPCG is up next.
 
 It would be nice not to leave compilation in container.
 
 Keeping containers clean and lean is good practice.
 
+</Steps>
+
 ---
 
 ## How do we keep it clean?
+
+<Steps>
 
 **Multi-stage building!**
 
@@ -464,8 +487,307 @@ One stage compiles all of our various binaries (like HPCG).
 
 The other stage (the one with Slurm) gets the binaries to run.
 
+</Steps>
+
 ---
 
-<!-- TODO Add HPCG compilation process and transfer binary to some opt directory to Slurm container. -->
-<!-- TODO Test all this shit and see how to do networking between the containers using Singularity. -->
-<!-- TODO Submit slides to Matthew -->
+<CodeSurfer>
+
+```bash
+Bootstrap: library
+From: ubuntu:20.04
+Stage: final
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+    /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+    /home/ghost/Downloads/cgroup.conf /etc/slurm-llnl/
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+%startscript
+    sudo sed -i "s/REPLACE_IT/CPUs=$(nproc)/g" /etc/slurm-llnl/slurm.conf
+    sudo service munge start
+    sudo service slurmctld start # Use ONLY this if controller node
+    # sudo slurmd -N $(hostname) # Use ONLY this if worker node
+
+%runscript
+    exec "$@"
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+```bash title="Add the building stage" subtitle="It's just another header in the definition file."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+Bootstrap: library
+From: ubuntu:20.04
+Stage: final
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+    /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+    /home/ghost/Downloads/cgroup.conf /etc/slurm-llnl/
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+%startscript
+    sudo sed -i "s/REPLACE_IT/CPUs=$(nproc)/g" /etc/slurm-llnl/slurm.conf
+    sudo service munge start
+    sudo service slurmctld start # Use ONLY this if controller node
+    # sudo slurmd -N $(hostname) # Use ONLY this if worker node
+
+%runscript
+    exec "$@"
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+
+```
+
+```bash title="Compile HPCG" subtitle="Robbed straight from their website's instructions."
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%post
+    truncate -s0 /tmp/preseed.cfg; \
+    echo "tzdata tzdata/Areas select Europe" >> /tmp/preseed.cfg; \
+    echo "tzdata tzdata/Zones/Europe select Berlin" >> /tmp/preseed.cfg; \
+    debconf-set-selections /tmp/preseed.cfg && \
+    rm -f /etc/timezone /etc/localtime && \
+    apt-get update && \
+    apt-get install -y tzdata
+    apt install -y build-essential mpich libmpich-dev wget
+    cd ~
+    wget http://www.hpcg-benchmark.org/downloads/hpcg-3.1.tar.gz
+    tar -xzvf hpcg-3.1.tar.gz
+    cd hpcg-3.1/setup
+    cp Make.Linux_MPI Make.linux
+    cd ..
+    mkdir build
+    cd build
+    ../configure linux
+    make -j $(nproc)
+    cd bin && mv xhpcg /
+
+Bootstrap: library
+From: ubuntu:20.04
+Stage: final
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+    /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+    /home/ghost/Downloads/cgroup.conf /etc/slurm-llnl/
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+%startscript
+    sudo sed -i "s/REPLACE_IT/CPUs=$(nproc)/g" /etc/slurm-llnl/slurm.conf
+    sudo service munge start
+    sudo service slurmctld start # Use ONLY this if controller node
+    # sudo slurmd -N $(hostname) # Use ONLY this if worker node
+
+%runscript
+    exec "$@"
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+```bash title="Add the binary to the final container" subtitle="Just transfer it with a files section"
+Bootstrap: library
+From: ubuntu:20.04
+Stage: build
+
+%post
+    truncate -s0 /tmp/preseed.cfg; \
+    echo "tzdata tzdata/Areas select Europe" >> /tmp/preseed.cfg; \
+    echo "tzdata tzdata/Zones/Europe select Berlin" >> /tmp/preseed.cfg; \
+    debconf-set-selections /tmp/preseed.cfg && \
+    rm -f /etc/timezone /etc/localtime && \
+    apt-get update && \
+    apt-get install -y tzdata
+    apt install -y build-essential mpich libmpich-dev wget
+    cd ~
+    wget http://www.hpcg-benchmark.org/downloads/hpcg-3.1.tar.gz
+    tar -xzvf hpcg-3.1.tar.gz
+    cd hpcg-3.1/setup
+    cp Make.Linux_MPI Make.linux
+    cd ..
+    mkdir build
+    cd build
+    ../configure linux
+    make -j $(nproc)
+    cd bin && mv xhpcg /
+
+Bootstrap: library
+From: ubuntu:20.04
+Stage: final
+
+%setup
+    touch /test_file
+
+%files
+    /test_file /opt
+    /home/ghost/Downloads/slurm.conf /etc/slurm-llnl/
+    /home/ghost/Downloads/cgroup.conf /etc/slurm-llnl/
+
+%files from build
+    /xhpcg /opt
+
+%environment
+    export SOME_VAR=example
+    export LC_ALL=C
+
+%post
+    apt update && apt install -y munge netcat slurmd slurmctld
+    apt install sudo -y && \
+    apt install python3.9 python3-pip -y && \
+    useradd -m admin -s /usr/bin/bash -d /home/admin && \
+    echo "admin:admin" | chpasswd && \
+    adduser admin sudo && \
+    echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+%startscript
+    sudo sed -i "s/REPLACE_IT/CPUs=$(nproc)/g" /etc/slurm-llnl/slurm.conf
+    sudo service munge start
+    sudo service slurmctld start # Use ONLY this if controller node
+    # sudo slurmd -N $(hostname) # Use ONLY this if worker node
+
+%runscript
+    exec "$@"
+
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author Absolutely Not My Work (thanks Singularity website)
+    Version v0.0.1
+
+```
+
+</CodeSurfer>
+
+---
+
+# Tying it all together
+
+<Steps>
+
+Each node will have these containers running.
+
+Now they need to connect.
+
+</Steps>
+
+---
+
+# Some luck!
+
+<Steps>
+
+Containers can be searched via hostname or IP!
+
+Singularity doesn't do network isolation.
+
+Just `singularity run hpcg-slurm.dif`!
+
+</Steps>
+
+---
+
+# What's next?
+
+<Steps>
+
+- **The (Slurm) world is your oyster!**
+- Run the HPCG benchmark with `mpirun /opt/xhpcg ...` 
+- Connect with a Jupyter notebook
+- Add more nodes!
+
+</Steps>
+
+---
+
+# Questions?
